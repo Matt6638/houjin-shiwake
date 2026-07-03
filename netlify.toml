@@ -1,0 +1,4 @@
+# 公開対象を docs/ に限定（index.html のみ）。
+# CLAUDE.md（社内監査メモ）と 参照_法人仕訳/（購読コンテンツ）は docs/ の外にあり公開されない。
+[build]
+  publish = "docs"
