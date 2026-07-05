@@ -1,0 +1,31 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgC2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1f33"/>
+      <stop offset="100%" stop-color="#1c3a4a"/>
+    </linearGradient>
+    <linearGradient id="goldC2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f6dd9a"/>
+      <stop offset="100%" stop-color="#c99a3e"/>
+    </linearGradient>
+    <filter id="softC2" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <clipPath id="sqC2"><rect width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+  <g clip-path="url(#sqC2)">
+    <rect width="1024" height="1024" fill="url(#bgC2)"/>
+    <g filter="url(#softC2)">
+      <rect x="482" y="360" width="60" height="430" rx="20" fill="url(#goldC2)"/>
+      <rect x="360" y="778" width="304" height="46" rx="23" fill="url(#goldC2)"/>
+      <rect x="200" y="378" width="624" height="34" rx="17" fill="url(#goldC2)"/>
+      <circle cx="512" cy="395" r="34" fill="url(#goldC2)"/>
+      <line x1="270" y1="410" x2="220" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
+      <line x1="270" y1="410" x2="320" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
+      <path d="M 195 600 Q 270 700 345 600" fill="none" stroke="url(#goldC2)" stroke-width="30" stroke-linecap="round"/>
+      <line x1="754" y1="410" x2="704" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
+      <line x1="754" y1="410" x2="804" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
+      <path d="M 679 600 Q 754 700 829 600" fill="none" stroke="url(#goldC2)" stroke-width="30" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
