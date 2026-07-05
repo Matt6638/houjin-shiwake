@@ -250,6 +250,7 @@
           <div class="field hide" id="autoNewWrap">
             <label class="lab" for="maxRefundRate">最高解約返戻率(%)</label>
             <input type="number" id="maxRefundRate" min="0" max="200" step="0.1" placeholder="例:78.5">
+            <div class="hint">区分判定は<b>小数点第2位以下を切り捨てた率（＝小数第1位まで／設計書記載率）</b>で行えます（法基通9-3-5の2 質疑応答）。例：85.09%→85.0%＝「85%以下」で60%資産・40%損金。切捨は率を下げる方向のみで納税者不利になりません。返戻金÷保険料の生の値を入れても、判定は自動で小数第1位までに切り捨てます。</div>
             <label class="chk"><input type="checkbox" id="under30"><span>一の被保険者・当該事業年度の年換算保険料が30万円以下（50%超70%以下のとき全額損金特例／同種複数契約は合算判定）</span></label>
             <div class="field hide" id="elapsedWrap">
               <label class="lab" for="elapsedYears" style="margin-top:10px">経過年数（85%超のスケジュール判定用・何年目か）</label>
@@ -507,16 +508,20 @@
     if(!d)return null;
     var NEW="2019-07-08", H20="2008-02-28";
     if(d>=NEW){ // 新通達（最高解約返戻率区分）
-      var mr=opt.maxRate;
-      if(mr==null||isNaN(mr))return {need:1};
-      if(mr<=50)return {ratio:0,label:"新通達：最高解約返戻率50%以下 → 全額損金"};
-      if(mr<=70)return opt.under30?{ratio:0,label:"新通達：50%超70%以下・年換算30万円以下 → 全額損金特例"}
-                                  :{ratio:0.4,label:"新通達：50%超70%以下 → 前半4割期間 資産40%（損金60%）"};
-      if(mr<=85)return {ratio:0.6,label:"新通達：70%超85%以下 → 前半4割期間 資産60%（損金40%）"};
+      var mrRaw=opt.maxRate;
+      if(mrRaw==null||isNaN(mrRaw))return {need:1};
+      // 区分判定は「小数点2位以下を切り捨てた（＝小数第1位までの）設計書記載率」で行える
+      // （法基通9-3-5の2 質疑応答／参照:00_その他_1_3.md 1017・1118行）。切捨は率を下げる方向のみで納税者不利にならない。
+      var mr=trunc1(mrRaw);
+      var trNote=(mr!==mrRaw)?"　※判定率 "+mr.toFixed(1)+"％（入力 "+mrRaw+"％の小数点2位以下を切捨・設計書記載率で判定）":"";
+      if(mr<=50)return {ratio:0,label:"新通達：最高解約返戻率50%以下 → 全額損金"+trNote};
+      if(mr<=70)return opt.under30?{ratio:0,label:"新通達：50%超70%以下・年換算30万円以下 → 全額損金特例"+trNote}
+                                  :{ratio:0.4,label:"新通達：50%超70%以下 → 前半4割期間 資産40%（損金60%）"+trNote};
+      if(mr<=85)return {ratio:0.6,label:"新通達：70%超85%以下 → 前半4割期間 資産60%（損金40%）"+trNote};
       var yr=opt.elapsed; // 85%超
       if(yr==null||isNaN(yr))return {need:1};
       var rate=(yr<=10?mr*0.9:mr*0.7)/100;
-      return {ratio:rate,label:"新通達：85%超・"+(yr<=10?"当初10年 資産＝最高返戻率×90%":"11年目以降 資産＝最高返戻率×70%")+"＝"+(rate*100).toFixed(1)+"%",warn:1};
+      return {ratio:rate,label:"新通達：85%超・"+(yr<=10?"当初10年 資産＝最高返戻率×90%":"11年目以降 資産＝最高返戻率×70%")+"＝"+(rate*100).toFixed(1)+"%"+trNote,warn:1};
     }
     // 旧通達
     var type=opt.oldType;
@@ -541,6 +546,8 @@
     }
   }
   function pct(x){return (Math.round(x*1000)/10).toString();}
+  // 最高解約返戻率の小数点2位以下切り捨て（＝小数第1位まで）。区分判定に用いる設計書記載率。浮動小数点対策込み。
+  function trunc1(x){return Math.floor(Number((x*10).toFixed(6)))/10;}
   function applyTeikiAuto(){
     var show=(state.txn==="pay" && $("policyType").value==="teiki");
     $("teikiAutoWrap").classList.toggle("hide",!show);
@@ -565,7 +572,8 @@
       opt.maxRate=parseFloat($("maxRefundRate").value);
       opt.under30=$("under30").checked;
       opt.elapsed=parseFloat($("elapsedYears").value);
-      $("elapsedWrap").classList.toggle("hide",!(opt.maxRate>85));
+      // 経過年数欄は「切り捨て後の判定率」が85%超のときだけ表示（85.09%→85.0%なら60%資産・85%超ではない）
+      $("elapsedWrap").classList.toggle("hide",!(!isNaN(opt.maxRate)&&trunc1(opt.maxRate)>85));
     } else if(isOld){
       opt.oldType=$("teikiOldType").value;
       opt.entryAge=parseFloat($("entryAge").value);
