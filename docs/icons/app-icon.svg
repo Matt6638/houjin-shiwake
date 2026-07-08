@@ -1,21 +1,35 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bgC2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0d1f33"/>
-      <stop offset="100%" stop-color="#1c3a4a"/>
+      <stop offset="0%" stop-color="#173247"/>
+      <stop offset="100%" stop-color="#091624"/>
     </linearGradient>
-    <linearGradient id="goldC2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f6dd9a"/>
-      <stop offset="100%" stop-color="#c99a3e"/>
+    <radialGradient id="glowC2" cx="50%" cy="24%" r="75%">
+      <stop offset="0%" stop-color="#4a7288" stop-opacity="0.9"/>
+      <stop offset="52%" stop-color="#1d3d50" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#091624" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldC2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff6d6"/>
+      <stop offset="15%" stop-color="#f8d888"/>
+      <stop offset="47%" stop-color="#ddac52"/>
+      <stop offset="79%" stop-color="#b17f30"/>
+      <stop offset="100%" stop-color="#875e1f"/>
+    </linearGradient>
+    <linearGradient id="glossC2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
     <filter id="softC2" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="13" stdDeviation="17" flood-color="#000000" flood-opacity="0.5"/>
     </filter>
     <clipPath id="sqC2"><rect width="1024" height="1024" rx="224"/></clipPath>
   </defs>
   <g clip-path="url(#sqC2)">
     <rect width="1024" height="1024" fill="url(#bgC2)"/>
-    <g filter="url(#softC2)">
+    <rect width="1024" height="1024" fill="url(#glowC2)"/>
+    <path d="M0 0 H1024 V420 Q512 545 0 420 Z" fill="url(#glossC2)"/>
+    <g filter="url(#softC2)" transform="translate(0,-76)">
       <rect x="482" y="360" width="60" height="430" rx="20" fill="url(#goldC2)"/>
       <rect x="360" y="778" width="304" height="46" rx="23" fill="url(#goldC2)"/>
       <rect x="200" y="378" width="624" height="34" rx="17" fill="url(#goldC2)"/>
@@ -26,6 +40,8 @@
       <line x1="754" y1="410" x2="704" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
       <line x1="754" y1="410" x2="804" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
       <path d="M 679 600 Q 754 700 829 600" fill="none" stroke="url(#goldC2)" stroke-width="30" stroke-linecap="round"/>
+      <rect x="212" y="380" width="600" height="6" rx="3" fill="#fff7dd" opacity="0.55"/>
+      <rect x="490" y="366" width="44" height="7" rx="3.5" fill="#fff7dd" opacity="0.5"/>
     </g>
   </g>
 </svg>
