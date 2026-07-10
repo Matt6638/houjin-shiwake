@@ -29,18 +29,52 @@
     <rect width="1024" height="1024" fill="url(#bgC2)"/>
     <rect width="1024" height="1024" fill="url(#glowC2)"/>
     <path d="M0 0 H1024 V420 Q512 545 0 420 Z" fill="url(#glossC2)"/>
-    <g filter="url(#softC2)" transform="translate(0,-76)">
-      <rect x="482" y="360" width="60" height="430" rx="20" fill="url(#goldC2)"/>
-      <rect x="360" y="778" width="304" height="46" rx="23" fill="url(#goldC2)"/>
-      <rect x="200" y="378" width="624" height="34" rx="17" fill="url(#goldC2)"/>
-      <circle cx="512" cy="395" r="34" fill="url(#goldC2)"/>
+    <g filter="url(#softC2)" transform="translate(0,-84)">
+      <!-- 縦の支柱：ろくろ挽き風のくびれ -->
+      <path d="M512 360
+               C530 360 538 366 538 384
+               C538 430 528 468 528 500
+               C526 540 526 610 528 650
+               C528 682 538 720 538 760
+               C538 778 530 784 512 784
+               C494 784 486 778 486 760
+               C486 720 496 682 496 650
+               C498 610 498 540 496 500
+               C496 468 486 430 486 384
+               C486 366 494 360 512 360 Z" fill="url(#goldC2)"/>
+      <ellipse cx="512" cy="452" rx="40" ry="13" fill="url(#goldC2)"/>
+      <ellipse cx="512" cy="690" rx="40" ry="13" fill="url(#goldC2)"/>
+
+      <!-- 台座：厚みのある彫刻風プリンス（段組みモールディング）-->
+      <rect x="452" y="770" width="120" height="24" rx="10" fill="url(#goldC2)"/>
+      <rect x="404" y="788" width="216" height="22" rx="8" fill="url(#goldC2)"/>
+      <rect x="352" y="806" width="320" height="36" rx="14" fill="url(#goldC2)"/>
+      <rect x="404" y="786" width="216" height="4" rx="2" fill="#3a2a10" opacity="0.28"/>
+      <rect x="356" y="804" width="312" height="4" rx="2" fill="#3a2a10" opacity="0.28"/>
+      <rect x="410" y="789" width="204" height="5" rx="2.5" fill="#fff7dd" opacity="0.45"/>
+      <rect x="360" y="808" width="304" height="6" rx="3" fill="#fff7dd" opacity="0.5"/>
+
+      <!-- 皿を吊るす紐 -->
       <line x1="270" y1="410" x2="220" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
       <line x1="270" y1="410" x2="320" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
       <path d="M 195 600 Q 270 700 345 600" fill="none" stroke="url(#goldC2)" stroke-width="30" stroke-linecap="round"/>
       <line x1="754" y1="410" x2="704" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
       <line x1="754" y1="410" x2="804" y2="600" stroke="url(#goldC2)" stroke-width="14" stroke-linecap="round"/>
       <path d="M 679 600 Q 754 700 829 600" fill="none" stroke="url(#goldC2)" stroke-width="30" stroke-linecap="round"/>
-      <rect x="212" y="380" width="600" height="6" rx="3" fill="#fff7dd" opacity="0.55"/>
+
+      <!-- 水平の梁：中央が太く端が細いアンティーク形状 -->
+      <path d="M222 395 C222 389 226 386 233 385 C330 378 420 376 512 376
+               C604 376 694 378 791 385 C798 386 802 389 802 395
+               C802 401 798 404 791 405 C694 412 604 414 512 414
+               C420 414 330 412 233 405 C226 404 222 401 222 395 Z" fill="url(#goldC2)"/>
+      <!-- 端の飾り玉（フィニアル）-->
+      <circle cx="209" cy="395" r="18" fill="url(#goldC2)"/>
+      <circle cx="815" cy="395" r="18" fill="url(#goldC2)"/>
+      <!-- 中央の軸（支点）-->
+      <circle cx="512" cy="395" r="34" fill="url(#goldC2)"/>
+
+      <!-- ハイライト（立体感）-->
+      <path d="M246 384 C360 378 664 378 778 384" fill="none" stroke="#fff7dd" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
       <rect x="490" y="366" width="44" height="7" rx="3.5" fill="#fff7dd" opacity="0.5"/>
     </g>
   </g>
