@@ -591,10 +591,25 @@
   }
   function syncRatioDisplay(){
     var auto=autoRatio!=null;
-    $("ratio").disabled=auto;
-    $("ratio").style.opacity=auto?"0.5":"";
-    if(auto)$("customRatioWrap").classList.add("hide");
-    else $("customRatioWrap").classList.toggle("hide",$("ratio").value!=="custom");
+    if(auto){
+      // 自動判定した割合を上の「経理区分」ドロップダウンにも反映する
+      var std={"0":0,"0.4":0.4,"0.5":0.5,"0.6":0.6,"1":1}, matched=null;
+      for(var k in std){if(Math.abs(std[k]-autoRatio)<1e-9){matched=k;break;}}
+      if(matched!==null){
+        $("ratio").value=matched;
+        $("customRatioWrap").classList.add("hide");
+      } else { // 2/3・3/4・85%超などドロップダウンに無い割合はカスタム表示
+        $("ratio").value="custom";
+        $("customRatio").value=pct(autoRatio);
+        $("customRatioWrap").classList.remove("hide");
+      }
+      $("ratio").disabled=true; $("customRatio").disabled=true;
+      $("ratio").style.opacity="0.6"; $("customRatio").style.opacity="0.6";
+    } else {
+      $("ratio").disabled=false; $("customRatio").disabled=false;
+      $("ratio").style.opacity=""; $("customRatio").style.opacity="";
+      $("customRatioWrap").classList.toggle("hide",$("ratio").value!=="custom");
+    }
   }
   ["contractDate","maxRefundRate","under30","elapsedYears","teikiOldType","entryAge","insTerm"].forEach(function(id){
     $(id).addEventListener("change",applyTeikiAuto);
