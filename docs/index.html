@@ -68,6 +68,11 @@
     transition:border-color .15s,box-shadow .15s;
   }
   input[type=number],input.amount{font-family:var(--mono);text-align:right;}
+  /* Safariの日付入力はネイティブ内在幅で右へ伸びるため、他の入力枠と幅を揃える */
+  input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;height:39px;padding:6px 12px;}
+  input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0;}
+  input[type=date]::-webkit-datetime-edit{padding:0;line-height:normal;}
+  input[type=date]::-webkit-calendar-picker-indicator{margin-left:auto;}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(154,123,79,.16);}
   textarea{resize:vertical;line-height:1.75;}
 
