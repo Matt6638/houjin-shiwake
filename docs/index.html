@@ -99,6 +99,8 @@
   #out .panel-body{padding:0;}
   .placeholder{padding:46px 24px;text-align:center;color:#a39d8a;font-size:13.5px;}
   .placeholder .mark{font-family:var(--mincho);font-size:30px;color:var(--rule);display:block;margin-bottom:10px;}
+  .incomplete{padding:40px 24px;text-align:center;color:#a3906a;font-size:13px;line-height:1.85;}
+  .incomplete .mk{font-family:var(--mincho);font-size:28px;color:var(--rule);display:block;margin-bottom:10px;}
 
   /* 振替伝票 */
   .denpyo{padding:22px 20px 6px;}
@@ -190,7 +192,7 @@
     <!-- INPUT -->
     <div class="panel">
       <div class="panel-head"><span class="no">INPUT</span><h2>入力項目</h2></div>
-      <div class="panel-body">
+      <div class="panel-body" id="inputPanelBody">
 
         <div class="field">
           <label class="lab">モード</label>
@@ -446,6 +448,7 @@
         b.setAttribute("aria-pressed","true");
         state[key]=b.dataset.v;
         onChange();
+        render(); // 区分切替も結果へ即反映
       });
     });
   }
@@ -669,7 +672,7 @@
 
     if(state.txn==="pay"){
       var P=numVal("premium");
-      if(isNaN(P)||P<0){alert("支払保険料を入力してください。");return null;}
+      if(isNaN(P)||P<0)return {incomplete:true,msg:"支払保険料を入力してください。"};
       var assetAmt=Math.round(P*r), lossAmt=P-assetAmt;
       if(lossAmt>0)lines.push({s:"借",a:lossAcc,v:lossAmt});
       if(assetAmt>0)lines.push({s:"借",a:asset,v:assetAmt});
@@ -683,14 +686,14 @@
       var A;
       if(state.bal==="direct"){
         A=numVal("balDirect");
-        if(isNaN(A)||A<0){alert("資産計上残高を入力してください。");return null;}
+        if(isNaN(A)||A<0)return {incomplete:true,msg:"資産計上残高を入力してください。"};
       } else {
         var cum=numVal("cumPremium");
-        if(isNaN(cum)||cum<0){alert("払込保険料累計を入力してください。");return null;}
+        if(isNaN(cum)||cum<0)return {incomplete:true,msg:"払込保険料累計を入力してください。"};
         A=Math.round(cum*r); isEstimate=true;
       }
       var C=numVal("surrValue");
-      if(isNaN(C)||C<0){alert("解約返戻金・満期金を入力してください。");return null;}
+      if(isNaN(C)||C<0)return {incomplete:true,msg:"解約返戻金・満期金を入力してください。"};
       var diff=C-A;
       lines.push({s:"借",a:"現金預金",v:C});
       if(diff>=0){
@@ -761,10 +764,14 @@
   }
   function normName(s){s=(s||"").trim();return s?s.replace(/[ 　]+/g," "):"";}
   function withSama(s){s=normName(s);if(!s)return "";s=s.replace(/[ 　]*(様|さま|サマ)\s*$/,"").replace(/\s+$/,"");return s?s+" 様":"";}
-  function mailText(d){
+  // 宛先2行（会社名／役職＋担当者）。役職が空欄なら本文にも入れず、先頭空白も付けない。
+  function recipientLines(){
     var company=normCompany($("company").value)||"{顧客会社名}";
-    var role=$("role").value.trim()||"{役職}";
+    var role=$("role").value.trim();
     var contact=withSama($("contact").value)||"{担当者名} 様";
+    return company+"\n"+(role?role+"　"+contact:contact);
+  }
+  function mailText(d){
     var pt=$("policyType").value;
     var product=pt==="yoro"?"養老保険":pt==="shushin"?"終身保険":pt==="teiki"?"法人保険":"法人保険";
     var diffNote="";
@@ -779,10 +786,11 @@
       diffNote="　保険料を所定の割合で損金算入・資産計上いたします。";
     }
     var ryui="　・上記は現時点の情報に基づく参考でございます。最終的な経理・税務処理は、\n　　貴社顧問税理士にご確認のうえご確定をお願いいたします。";
-    if(d.isEstimate)ryui+="\n　・資産計上残高は払込保険料累計の"+pct(ratioVal())+"%として算定しております。\n　　帳簿上の実残高と差異がある場合は、そちらが優先されます。";
+    if(state.txn==="surrender")ryui+="\n　・資産計上額の取り崩しは、必ず帳簿の資産計上簿価（実際に計上されている金額）をご参照ください。\n　　毎年の端数処理（特に外貨建てや保険料が毎年変動する契約で、毎年1/2等の按分計上を\n　　都度行っていない場合）の累積により、払込累計からの理論値と実際の簿価に差が生じることがあります。";
+    if(d.isEstimate)ryui+="\n　・資産計上残高は払込保険料累計の"+pct(ratioVal())+"%として算定した推計値です。\n　　帳簿上の実残高と差異がある場合は、そちらが優先されます。";
 
     return "件名:【ご参考】"+product+"の"+d.subjectTxn+"について\n\n"+
-      company+"\n"+role+"　"+contact+"\n\n"+
+      recipientLines()+"\n\n"+
       "いつもお世話になっております。\nプルデンシャル生命保険の松上でございます。\n\n"+
       mailContentLine(d)+"\n\n"+
       "■ 取引内容\n"+txnDetailText(d)+"\n\n"+
@@ -814,7 +822,7 @@
   function buildBatch(){
     var raw=$("batchInput").value.replace(/\r/g,"");
     var lines=raw.split("\n").map(function(l){return l.replace(/\s+$/,"");}).filter(function(l){return l.trim()!=="";});
-    if(!lines.length){alert("契約一覧を貼り付けてください。");return null;}
+    if(!lines.length)return {incomplete:true,msg:"契約一覧を貼り付けてください。"};
     function cells(l){return l.split("\t").map(function(c){return c.trim();});}
     function num(x){return parseFloat(toHankaku(x||"").replace(/[^0-9.]/g,""));}
     var f=cells(lines[0]);
@@ -833,7 +841,7 @@
         rows.push({name:name,premium:P,loss:lossAmt,asset:asset,assetAmt:assetAmt,dateJP:(parseDateAny(c[2])||defD)});
         tot.premium+=P;tot.loss+=lossAmt;tot.asset+=assetAmt;
       });
-      if(!rows.length){alert("有効な明細がありません。\n"+errors.join("\n"));return null;}
+      if(!rows.length)return {incomplete:true,msg:"有効な明細がありません。"+(errors.length?"（"+errors.join(" ／ ")+"）":"")};
       return {txn:"pay",rows:rows,tot:tot,errors:errors,asset:asset,lossAcc:lossAcc,ratio:r};
     } else {
       var method=state.bbal||"estimate";
@@ -852,7 +860,7 @@
         rows2.push({name:name,cash:surr,asset:asset,bal:bal,diff:diff,kaiJP:kaiJP});
         tot2.cash+=surr;tot2.asset+=bal;if(diff>=0)tot2.income+=diff;else tot2.loss+=(-diff);
       });
-      if(!rows2.length){alert("有効な明細がありません。\n"+errors2.join("\n"));return null;}
+      if(!rows2.length)return {incomplete:true,msg:"有効な明細がありません。"+(errors2.length?"（"+errors2.join(" ／ ")+"）":"")};
       return {txn:"surrender",rows:rows2,tot:tot2,errors:errors2,asset:asset,isEstimate:(method==="estimate"),ratio:r,anyDiff:anyDiff,batchChaku:batchChaku};
     }
   }
@@ -883,10 +891,7 @@
       (b.errors.length?'<p class="note" style="padding:0 20px;">読み飛ばした行:'+b.errors.join(' ／ ')+'</p>':'');
   }
   function batchMail(b){
-    var company=normCompany($("company").value)||"{顧客会社名}";
-    var role=$("role").value.trim()||"{役職}";
-    var contact=withSama($("contact").value)||"{担当者名} 様";
-    var head1=company+"\n"+role+"　"+contact+"\n\nいつもお世話になっております。\nプルデンシャル生命保険の松上でございます。\n\n";
+    var head1=recipientLines()+"\n\nいつもお世話になっております。\nプルデンシャル生命保険の松上でございます。\n\n";
     var ryui="　・上記は現時点の情報に基づく参考でございます。最終的な経理・税務処理は、\n　　貴社顧問税理士にご確認のうえご確定をお願いいたします。";
     if(b.txn==="pay"){
       var blocksP=b.rows.map(function(rw){
@@ -909,7 +914,8 @@
     });
     var totLine="　着金日(予定)："+(b.batchChaku||"")+"\n　解約返戻金 合計："+yen(b.tot.cash)+"円\n　取崩し("+b.asset+") 合計："+yen(b.tot.asset)+"円\n"+
       (b.tot.income?"　雑収入 合計："+yen(b.tot.income)+"円\n":"")+(b.tot.loss?"　雑損失 合計："+yen(b.tot.loss)+"円\n":"");
-    if(b.isEstimate)ryui+="\n　・資産計上残高は払込累計の"+(b.ratio*100)+"%として算定した推計値です。帳簿の実残高が優先されます。";
+    ryui+="\n　・資産計上額の取り崩しは、必ず帳簿の資産計上簿価（実際に計上されている金額）をご参照ください。\n　　毎年の端数処理（特に外貨建てや保険料が毎年変動する契約で、毎年1/2等の按分計上を都度行って\n　　いない場合）の累積により、払込累計からの理論値と実際の簿価に差が生じることがあります。";
+    if(b.isEstimate)ryui+="\n　・資産計上残高は払込累計の"+pct(b.ratio)+"%として算定した推計値です。帳簿の実残高が優先されます。";
     if(b.anyDiff)ryui+="\n　・解約日と着金日が異なる契約があります。期をまたぐ場合の計上時期は顧問税理士にご確認ください。";
     return "件名:【ご参考】法人保険(複数契約)の解約に伴う経理処理について\n\n"+head1+
       "このたび解約となりました法人保険(計"+b.rows.length+"件)につきまして、\n経理処理(仕訳)の参考情報をお送りいたします。下記をご確認くださいませ。\n\n"+
@@ -965,12 +971,20 @@
   }
   function bindPdf(){var p=$("pdfBtn");if(p)p.addEventListener("click",doPdf);}
 
-  $("gen").addEventListener("click",function(){
+  // 結果描画（入力のたびに呼ばれる）。情報不足時はその旨を表示する。
+  function render(){
+    var res=$("result"), ph=$("ph");
+    var out=(state.mode==="batch")?buildBatch():build();
+    if(!out || out.incomplete){
+      ph.classList.add("hide");
+      res.classList.remove("hide");
+      res.innerHTML='<div class="incomplete"><span class="mk">＋</span>入力すると自動で仕訳が表示されます。<br>'+esc((out&&out.msg)||"必要な項目を入力してください。")+'</div>';
+      lastPdf=null;
+      return;
+    }
     if(state.mode==="batch"){
-      var b=buildBatch();if(!b)return;
-      var ledgerB=batchLedgerHtml(b);
-      var resB=$("result");
-      resB.innerHTML='<div class="res-actions"><button type="button" class="btn btn-ghost" id="pdfBtn">PDFで保存（印刷）</button></div>'+
+      var b=out, ledgerB=batchLedgerHtml(b);
+      res.innerHTML='<div class="res-actions"><button type="button" class="btn btn-ghost" id="pdfBtn">PDFで保存（印刷）</button></div>'+
         ledgerB+
         '<div class="mailblock"><div class="mhead"><h3>メール文(そのまま送信可)</h3>'+
         '<button type="button" class="copy" id="copyBtn">コピー</button></div>'+
@@ -978,45 +992,44 @@
         '<p class="note">差出人の署名はメーラー側で挿入してください。</p></div>';
       $("mailArea").value=batchMail(b);
       lastPdf={ledger:ledgerB,calc:"",company:$("company").value.trim(),batch:true,kind:(state.btxn==="pay"?"お支払時":"ご解約時")};
-      $("ph").classList.add("hide");
-      resB.classList.remove("hide");
-      resB.classList.remove("reveal");void resB.offsetWidth;resB.classList.add("reveal");
-      bindCopy();bindPdf();
-      return;
+    } else {
+      var d=out, ledgerS=ledgerHtml(d);
+      res.innerHTML='<div class="res-actions"><button type="button" class="btn btn-ghost" id="pdfBtn">PDFで保存（印刷）</button></div>'+
+        ledgerS+
+        '<div class="calc"><h3>計算過程</h3>'+d.calcHtml+'</div>'+
+        '<div class="mailblock"><div class="mhead"><h3>メール文(そのまま送信可)</h3>'+
+        '<button type="button" class="copy" id="copyBtn">コピー</button></div>'+
+        '<textarea id="mailArea" readonly></textarea>'+
+        (d.noteHtml?'<p class="note">'+d.noteHtml+'</p>':'')+
+        '<p class="note">差出人の署名はメーラー側で挿入してください。</p></div>';
+      $("mailArea").value=mailText(d);
+      lastPdf={ledger:ledgerS,calc:d.calcHtml,company:$("company").value.trim(),batch:false,kind:(state.txn==="pay"?"お支払時":"ご解約時")};
     }
-    var d=build();
-    if(!d)return;
-    var ledgerS=ledgerHtml(d);
-    var html='<div class="res-actions"><button type="button" class="btn btn-ghost" id="pdfBtn">PDFで保存（印刷）</button></div>'+
-      ledgerS+
-      '<div class="calc"><h3>計算過程</h3>'+d.calcHtml+'</div>'+
-      '<div class="mailblock"><div class="mhead"><h3>メール文(そのまま送信可)</h3>'+
-      '<button type="button" class="copy" id="copyBtn">コピー</button></div>'+
-      '<textarea id="mailArea" readonly></textarea>'+
-      (d.noteHtml?'<p class="note">'+d.noteHtml+'</p>':'')+
-      '<p class="note">差出人の署名はメーラー側で挿入してください。</p></div>';
-    var res=$("result");
-    res.innerHTML=html;
-    $("mailArea").value=mailText(d);
-    lastPdf={ledger:ledgerS,calc:d.calcHtml,company:$("company").value.trim(),batch:false,kind:(state.txn==="pay"?"お支払時":"ご解約時")};
-    $("ph").classList.add("hide");
+    ph.classList.add("hide");
     res.classList.remove("hide");
-    res.classList.remove("reveal");void res.offsetWidth;res.classList.add("reveal");
     bindCopy();bindPdf();
+  }
+  // 入力・変更をリアルタイム反映
+  $("inputPanelBody").addEventListener("input",render);
+  $("inputPanelBody").addEventListener("change",render);
+  $("gen").addEventListener("click",function(){
+    render();
+    var res=$("result");
+    res.classList.remove("reveal");void res.offsetWidth;res.classList.add("reveal");
   });
 
   $("reset").addEventListener("click",function(){
     ["premium","balDirect","cumPremium","surrValue","customRatio","otherAcc","company","role","contact","insured","batchInput","b_otherAcc","b_customRatio","contractDate","maxRefundRate","elapsedYears","entryAge","insTerm"].forEach(function(id){$(id).value="";});
     $("under30").checked=false;
     applyTeikiAuto();
-    lastPdf=null;
-    $("result").classList.add("hide");$("ph").classList.remove("hide");
+    render();
   });
 
   // 初期表示：現在の保険種類に合わせて加入形態(養老の損金科目)欄の表示を同期
   $("yoroLossWrap").classList.toggle("hide",$("policyType").value!=="yoro");
   $("b_yoroLossWrap").classList.toggle("hide",$("b_policyType").value!=="yoro");
   applyTeikiAuto(); // 初期表示：定期＋支払なら自動判定パネルを表示
+  render(); // 初期表示：現在の入力状態を反映（情報不足の案内を表示）
 })();
 </script>
 </body>
