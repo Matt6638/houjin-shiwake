@@ -311,6 +311,15 @@
             <label class="lab" for="surrValue">解約返戻金・満期金(円)</label>
             <input type="text" inputmode="numeric" class="amount" id="surrValue" placeholder="例:1,434,304">
           </div>
+          <div class="field">
+            <label class="lab" for="loanPrincipal">契約者貸付残高・元金(任意)</label>
+            <input type="text" inputmode="numeric" class="amount" id="loanPrincipal" placeholder="貸付があれば入力（なければ空欄）">
+          </div>
+          <div class="field">
+            <label class="lab" for="loanInterest">未収の貸付利息(任意)</label>
+            <input type="text" inputmode="numeric" class="amount" id="loanInterest" placeholder="例:100,000（利息があれば入力）">
+            <div class="hint">契約者貸付があると、解約返戻金（総額）から元金・未収利息を精算し、差引後を受け取ります。上の「解約返戻金・満期金」は<b>精算前の総額</b>を入力してください。借入金の消滅（元金）と支払利息（利息）を自動で仕訳に反映します。雑収入／雑損失は総額の解約返戻金と資産計上残高の差で計算します（貸付では変わりません）。</div>
+          </div>
         </div>
 
         <div class="field">
@@ -631,7 +640,7 @@
   function toHankaku(s){return (s||"").replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}).replace(/，/g,",");}
   function numVal(id){var v=toHankaku($(id).value).replace(/[^0-9.]/g,"");return v===""?NaN:parseFloat(v);}
   (function(){
-    ["premium","balDirect","cumPremium","surrValue"].forEach(function(id){
+    ["premium","balDirect","cumPremium","surrValue","loanPrincipal","loanInterest"].forEach(function(id){
       var el=$(id),composing=false;
       function fmt(){var raw=toHankaku(el.value).replace(/[^0-9]/g,"");el.value=raw?Number(raw).toLocaleString("en-US"):"";}
       el.addEventListener("compositionstart",function(){composing=true;});
@@ -694,18 +703,25 @@
       }
       var C=numVal("surrValue");
       if(isNaN(C)||C<0)return {incomplete:true,msg:"解約返戻金・満期金を入力してください。"};
-      var diff=C-A;
-      lines.push({s:"借",a:"現金預金",v:C});
-      if(diff>=0){
-        if(A>0)lines.push({s:"貸",a:asset,v:A});
-        if(diff>0)lines.push({s:"貸",a:"雑収入",v:diff,cls:"cr-income"});
-      } else {
-        lines.push({s:"借",a:"雑損失",v:-diff,cls:"dr-loss"});
-        lines.push({s:"貸",a:asset,v:A});
-      }
+      // 契約者貸付（任意）：解約返戻金(総額)から元金・未収利息を精算し、差引後を受取る
+      var loanP=numVal("loanPrincipal"); if(isNaN(loanP)||loanP<0)loanP=0;
+      var loanI=numVal("loanInterest"); if(isNaN(loanI)||loanI<0)loanI=0;
+      var hasLoan=(loanP>0||loanI>0);
+      var net=C-loanP-loanI; // 差引受取（現金預金）
+      var diff=C-A; // 雑収入/雑損失は総額の解約返戻金基準
+      // 借方：差引現金（正なら借方）、借入金の消滅、支払利息
+      if(net>0)lines.push({s:"借",a:"現金預金",v:net});
+      if(loanP>0)lines.push({s:"借",a:"借入金",v:loanP});
+      if(loanI>0)lines.push({s:"借",a:"支払利息",v:loanI});
+      if(diff<0)lines.push({s:"借",a:"雑損失",v:-diff,cls:"dr-loss"});
+      if(net<0)lines.push({s:"貸",a:"現金預金",v:-net}); // 貸付が返戻金を上回る場合は追加拠出
+      // 貸方：資産取崩、雑収入
+      if(A>0)lines.push({s:"貸",a:asset,v:A});
+      if(diff>0)lines.push({s:"貸",a:"雑収入",v:diff,cls:"cr-income"});
       var word=diff>=0?"雑収入(益金)":"雑損失(損金)";
-      calcHtml='<p>'+asset+'の残高'+(isEstimate?'(払込累計からの推計値)':'')+'を取り崩し、受取額との差額を計上します。</p>'+
-        '<div class="formula">差額 = 解約返戻金 '+yen(C)+' − 資産計上残高 '+yen(A)+' = '+yen(diff)+'円<br>→ '+word+'</div>';
+      calcHtml='<p>'+asset+'の残高'+(isEstimate?'(払込累計からの推計値)':'')+'を取り崩し、'+(hasLoan?'解約返戻金(総額)':'受取額')+'との差額を計上します。</p>'+
+        '<div class="formula">差額 = 解約返戻金 '+yen(C)+' − 資産計上残高 '+yen(A)+' = '+yen(diff)+'円<br>→ '+word+'</div>'+
+        (hasLoan?'<div class="formula">契約者貸付の精算：解約返戻金(総額) '+yen(C)+' − 借入金 '+yen(loanP)+' − 支払利息 '+yen(loanI)+' = 差引受取 '+yen(net)+'円</div>':'');
       subjectTxn="解約に伴う経理処理";
       mailContent="このたび解約となりました法人保険"+($("insured").value.trim()?"(被保険者:"+withSama($("insured").value)+")":"")+"につきまして";
       if(isEstimate)noteHtml='資産計上残高は払込累計×'+pct(r)+'%による<b>推計値</b>です。帳簿の実残高が優先されます。';
@@ -720,7 +736,9 @@
 
     return {lines:lines,drSum:drSum,crSum:crSum,calcHtml:calcHtml,isEstimate:isEstimate,
             subjectTxn:subjectTxn,mailContent:mailContent,noteHtml:noteHtml,dateJP:dateJP,asset:asset,
-            txnJP:txnJP,recvJP:recvJP,datesDiffer:datesDiffer,dateLabel:dateLabel};
+            txnJP:txnJP,recvJP:recvJP,datesDiffer:datesDiffer,dateLabel:dateLabel,
+            loanP:(typeof loanP!=="undefined"?loanP:0),loanI:(typeof loanI!=="undefined"?loanI:0),
+            netCash:(typeof net!=="undefined"?net:0),grossC:(typeof C!=="undefined"?C:0)};
   }
 
   function ledgerHtml(d){
@@ -782,6 +800,7 @@
       if(crIncome)diffNote="　"+d.asset+"の残高"+(assetLine?"("+yen(assetLine.v)+"円)":"")+"を取り崩し、解約返戻金との差額\n　"+yen(crIncome.v)+"円を雑収入(益金)として計上いたします。";
       else if(drLoss)diffNote="　"+d.asset+"の残高"+(assetLine?"("+yen(assetLine.v)+"円)":"")+"を取り崩し、解約返戻金との差額\n　"+yen(drLoss.v)+"円を雑損失(損金)として計上いたします。";
       else diffNote="　"+d.asset+"の残高を取り崩します。";
+      if(d.loanP>0||d.loanI>0)diffNote+="\n　契約者貸付があるため、解約返戻金(総額 "+yen(d.grossC)+"円)から借入金 "+yen(d.loanP)+"円"+(d.loanI>0?"・支払利息 "+yen(d.loanI)+"円":"")+"を精算し、\n　差引 "+yen(d.netCash)+"円をお受け取りいただきます。";
     } else {
       diffNote="　保険料を所定の割合で損金算入・資産計上いたします。";
     }
@@ -808,7 +827,10 @@
     } else {
       var t="　法人保険1契約の解約に伴う解約返戻金の受取";
       if(state.bal==="estimate")t+="\n　払込保険料累計："+yen(numVal("cumPremium"))+"円";
-      t+="\n　解約返戻金："+yen(numVal("surrValue"))+"円";
+      t+="\n　解約返戻金"+((d.loanP>0||d.loanI>0)?"(総額)":"")+"："+yen(numVal("surrValue"))+"円";
+      if(d.loanP>0)t+="\n　契約者貸付 元金精算："+yen(d.loanP)+"円";
+      if(d.loanI>0)t+="\n　貸付利息精算："+yen(d.loanI)+"円";
+      if(d.loanP>0||d.loanI>0)t+="\n　差引受取額："+yen(d.netCash)+"円";
       t+="\n　解約日："+(d.txnJP||"")+"\n　着金日(予定)："+(d.recvJP||d.txnJP||"");
       return t;
     }
@@ -1019,7 +1041,7 @@
   });
 
   $("reset").addEventListener("click",function(){
-    ["premium","balDirect","cumPremium","surrValue","customRatio","otherAcc","company","role","contact","insured","batchInput","b_otherAcc","b_customRatio","contractDate","maxRefundRate","elapsedYears","entryAge","insTerm"].forEach(function(id){$(id).value="";});
+    ["premium","balDirect","cumPremium","surrValue","loanPrincipal","loanInterest","customRatio","otherAcc","company","role","contact","insured","batchInput","b_otherAcc","b_customRatio","contractDate","maxRefundRate","elapsedYears","entryAge","insTerm"].forEach(function(id){$(id).value="";});
     $("under30").checked=false;
     applyTeikiAuto();
     render();
