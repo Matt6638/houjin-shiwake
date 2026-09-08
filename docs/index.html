@@ -225,12 +225,28 @@
           <input type="text" id="otherAcc" placeholder="例:保険料積立金">
         </div>
         <div class="field hide" id="yoroLossWrap">
-          <label class="lab" for="yoroLossType">加入形態(損金側の科目が決まります)</label>
-          <select id="yoroLossType">
-            <option value="fukuri">普遍的加入 → 損金科目「福利厚生費」</option>
-            <option value="kyuyo">特定者のみ加入 → 損金科目「給与」</option>
+          <label class="lab" for="yoroType">養老の受取人形態(損金／資産区分が決まります)</label>
+          <select id="yoroType">
+            <option value="half">満期=法人・死亡=遺族（ハーフタックス／1/2資産・9-3-4(3)）</option>
+            <option value="houjin">満期・死亡とも法人（全額資産計上・9-3-4(1)）</option>
+            <option value="kyuyo_all">満期・死亡とも被保険者・遺族（全額給与・9-3-4(2)）</option>
           </select>
-          <div class="hint">養老ハーフタックス(法基通9-3-4(3))。普遍的加入は福利厚生費、特定者のみは給与。いずれも損金算入率は1/2(資産計上50%・自動設定)。<br>※この1/2ルールは平準払が前提です。一時払・短期払(払込期間＜保険期間)の場合は前払保険料の期間按分が必要で、本ツールの対象外です。</div>
+          <div class="field hide" id="yoroHalfWrap" style="margin-top:12px">
+            <label class="lab" for="yoroLossType">加入形態(ハーフの損金科目)</label>
+            <select id="yoroLossType">
+              <option value="fukuri">普遍的加入 → 損金科目「福利厚生費」</option>
+              <option value="kyuyo">特定者のみ加入 → 損金科目「給与」</option>
+            </select>
+          </div>
+          <div class="hint">法基通9-3-4。ハーフタックスは1/2資産・1/2損金（普遍的=福利厚生費／特定者=給与）。満期・死亡とも法人受取なら全額資産、被保険者・遺族受取なら全額給与。区分に応じ経理区分を自動設定。<br>※1/2は平準払前提。一時払・短期払は期間按分が必要で対象外。</div>
+        </div>
+        <div class="field hide" id="shushinTypeWrap">
+          <label class="lab" for="shushinType">終身の損金／資産区分</label>
+          <select id="shushinType">
+            <option value="houjin">死亡保険金受取人=法人（全額資産計上）</option>
+            <option value="kyuyo">遺族／役員・特定使用人のみ被保険者（全額給与）</option>
+          </select>
+          <div class="hint">法基通9-3-4に準じ、法人受取は全額を保険料積立金に資産計上。遺族受取かつ特定者のみは全額給与（給料・報酬）。</div>
         </div>
 
         <div class="field">
@@ -511,14 +527,32 @@
     $("b_customRatioWrap").classList.toggle("hide",this.value!=="custom");
   });
 
+  // 保険種類＋受取人形態に応じて経理区分(資産計上割合)を自動設定
+  function applyPolicyRatio(){
+    var t=$("policyType").value;
+    if(t==="shushin"){
+      $("ratio").value=($("shushinType").value==="kyuyo")?"0":"1";
+      $("customRatioWrap").classList.add("hide");
+    } else if(t==="yoro"){
+      var yt=$("yoroType").value;
+      $("ratio").value=(yt==="houjin")?"1":(yt==="kyuyo_all")?"0":"0.5";
+      $("customRatioWrap").classList.add("hide");
+    }
+  }
+  function syncTypeWraps(){
+    var t=$("policyType").value;
+    $("otherAccWrap").classList.toggle("hide",t!=="other");
+    $("yoroLossWrap").classList.toggle("hide",t!=="yoro");
+    $("shushinTypeWrap").classList.toggle("hide",t!=="shushin");
+    $("yoroHalfWrap").classList.toggle("hide",!(t==="yoro"&&$("yoroType").value==="half"));
+  }
   $("policyType").addEventListener("change",function(){
-    $("otherAccWrap").classList.toggle("hide",this.value!=="other");
-    $("yoroLossWrap").classList.toggle("hide",this.value!=="yoro");
-    if(this.value==="shushin"){$("ratio").value="1";$("customRatioWrap").classList.add("hide");}
-    // 養老ハーフタックスは福利厚生費・給与いずれも1/2損金(資産計上50%)
-    if(this.value==="yoro"){$("ratio").value="0.5";$("customRatioWrap").classList.add("hide");}
+    syncTypeWraps();
+    applyPolicyRatio();
     applyTeikiAuto(); // 定期＋支払時のみ自動判定パネルを出す／それ以外は autoRatio を解除
   });
+  $("yoroType").addEventListener("change",function(){syncTypeWraps();applyPolicyRatio();});
+  $("shushinType").addEventListener("change",applyPolicyRatio);
   $("ratio").addEventListener("change",function(){
     $("customRatioWrap").classList.toggle("hide",this.value!=="custom");
   });
@@ -665,7 +699,18 @@
   }
   // 損金側の科目：養老(ハーフタックス)は加入形態で福利厚生費(普遍的)／給与(特定者)、定期・終身等は支払保険料
   // 損金側の科目：養老=福利厚生費(普遍的)/給与(特定者)、定期=定期保険料、終身・その他=支払保険料
-  function lossAccount(){var t=$("policyType").value;if(t==="yoro")return $("yoroLossType").value==="kyuyo"?"給与":"福利厚生費";if(t==="teiki")return "定期保険料";return "支払保険料";}
+  function lossAccount(){
+    var t=$("policyType").value;
+    if(t==="yoro"){
+      var yt=$("yoroType").value;
+      if(yt==="kyuyo_all")return "給与";        // 全額給与(9-3-4(2))
+      if(yt==="houjin")return "福利厚生費";      // 全額資産のため損金行は出ない(未使用)
+      return $("yoroLossType").value==="kyuyo"?"給与":"福利厚生費"; // ハーフ
+    }
+    if(t==="shushin")return $("shushinType").value==="kyuyo"?"給与":"支払保険料"; // 全額給与 or 全額資産(未使用)
+    if(t==="teiki")return "定期保険料";
+    return "支払保険料";
+  }
   function ratioVal(){
     if(autoRatio!=null)return autoRatio; // 契約日からの自動判定が優先
     var r=$("ratio").value;
@@ -1069,8 +1114,8 @@
     render();
   });
 
-  // 初期表示：現在の保険種類に合わせて加入形態(養老の損金科目)欄の表示を同期
-  $("yoroLossWrap").classList.toggle("hide",$("policyType").value!=="yoro");
+  // 初期表示：現在の保険種類に合わせて受取人形態・損金科目欄の表示を同期
+  syncTypeWraps(); applyPolicyRatio();
   $("b_yoroLossWrap").classList.toggle("hide",$("b_policyType").value!=="yoro");
   applyTeikiAuto(); // 初期表示：定期＋支払なら自動判定パネルを表示
   render(); // 初期表示：現在の入力状態を反映（情報不足の案内を表示）
