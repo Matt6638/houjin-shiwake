@@ -205,9 +205,12 @@
         <div id="singleWrap">
         <div class="field">
           <label class="lab">取引区分</label>
-          <div class="seg" id="segTxn">
+          <div class="seg" id="segTxn" style="flex-wrap:wrap;">
             <button type="button" data-v="pay" aria-pressed="true">保険料の支払時</button>
             <button type="button" data-v="surrender" aria-pressed="false">解約・満期・減額時</button>
+            <button type="button" data-v="takedown" aria-pressed="false">資産取崩のみ</button>
+            <button type="button" data-v="loan_in" aria-pressed="false">契約者貸付(借入)</button>
+            <button type="button" data-v="paidup" aria-pressed="false">払済変更</button>
           </div>
         </div>
 
@@ -340,6 +343,49 @@
             <label class="lab" for="loanInterest">未収の貸付利息(任意)</label>
             <input type="text" inputmode="numeric" class="amount" id="loanInterest" placeholder="例:100,000（利息があれば入力）">
             <div class="hint">契約者貸付があると、解約返戻金（総額）から元金・未収利息を精算し、差引後を受け取ります。上の「解約返戻金・満期金」は<b>精算前の総額</b>を入力してください。借入金の消滅（元金）と支払利息（利息）を自動で仕訳に反映します。雑収入／雑損失は総額の解約返戻金と資産計上残高の差で計算します（貸付では変わりません）。</div>
+          </div>
+        </div>
+
+        <!-- takedown 資産取崩のみ -->
+        <div id="takedownFields" class="hide">
+          <div class="field">
+            <label class="lab" for="tdAmount">当期の取崩額(円)</label>
+            <input type="text" inputmode="numeric" class="amount" id="tdAmount" placeholder="例:50,000">
+            <div class="hint">保険料支払を伴わない期間に、資産計上済みの前払保険料／保険料積立金を取り崩して損金算入する仕訳です。借方=損金(保険種類の科目)、貸方=資産科目。短期払の当期分按分は別途「短期払」対応で扱います(本欄は取崩額を直接入力)。</div>
+          </div>
+        </div>
+
+        <!-- loan_in 契約者貸付(借入) -->
+        <div id="loanInFields" class="hide">
+          <div class="field">
+            <label class="lab" for="liAmount">契約者貸付を受けた金額(円)</label>
+            <input type="text" inputmode="numeric" class="amount" id="liAmount" placeholder="例:3,000,000">
+          </div>
+          <div class="field">
+            <label class="lab" for="liStamp">収入印紙代など(任意)</label>
+            <input type="text" inputmode="numeric" class="amount" id="liStamp" placeholder="例:200（初回貸付の印紙代）">
+            <div class="hint">契約者貸付を受けた時の仕訳です。借方=現金預金(貸付額−印紙代)＋租税公課(印紙代)、貸方=借入金(貸付額)。</div>
+          </div>
+        </div>
+
+        <!-- paidup 払済変更 -->
+        <div id="paidupFields" class="hide">
+          <div class="field">
+            <label class="lab" for="puCashValue">変更時の解約返戻金相当額(円)</label>
+            <input type="text" inputmode="numeric" class="amount" id="puCashValue" placeholder="例:12,000,000">
+          </div>
+          <div class="field">
+            <label class="lab" for="puOldAsset">変更前の資産計上額(前払/積立金・円)</label>
+            <input type="text" inputmode="numeric" class="amount" id="puOldAsset" placeholder="例:8,000,000">
+          </div>
+          <div class="field">
+            <label class="lab" for="puLoanP">契約者貸付元金(任意)</label>
+            <input type="text" inputmode="numeric" class="amount" id="puLoanP" placeholder="精算する場合に入力">
+          </div>
+          <div class="field">
+            <label class="lab" for="puLoanI">貸付利息(任意)</label>
+            <input type="text" inputmode="numeric" class="amount" id="puLoanI" placeholder="精算する場合に入力">
+            <div class="hint">払済保険への変更。解約返戻金相当額を新たに保険料積立金へ計上し、変更前の資産計上額との差額を雑収入／雑損失に振ります。契約者貸付があれば解約返戻金相当額から元金・利息を精算します。</div>
           </div>
         </div>
 
@@ -483,11 +529,15 @@
     });
   }
   bindSeg("segTxn","txn",function(){
-    var pay=state.txn==="pay";
-    $("payFields").classList.toggle("hide",!pay);
-    $("surrFields").classList.toggle("hide",pay);
-    $("recvDateWrap").classList.toggle("hide",pay);
-    $("txnDateLab").textContent=pay?"取引日(支払日)":"解約日(取引日)";
+    var t=state.txn, pay=t==="pay";
+    $("payFields").classList.toggle("hide",t!=="pay");
+    $("surrFields").classList.toggle("hide",t!=="surrender");
+    $("takedownFields").classList.toggle("hide",t!=="takedown");
+    $("loanInFields").classList.toggle("hide",t!=="loan_in");
+    $("paidupFields").classList.toggle("hide",t!=="paidup");
+    // 着金日は解約・払済のみ関連
+    $("recvDateWrap").classList.toggle("hide",!(t==="surrender"));
+    $("txnDateLab").textContent=pay?"取引日(支払日)":(t==="loan_in")?"取引日(借入日)":(t==="takedown")?"取引日(期末等)":(t==="paidup")?"変更日":"解約日(取引日)";
     applyTeikiAuto();
   });
   bindSeg("segBal","bal",function(){
@@ -679,7 +729,7 @@
   function toHankaku(s){return (s||"").replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0xFEE0);}).replace(/，/g,",");}
   function numVal(id){var v=toHankaku($(id).value).replace(/[^0-9.]/g,"");return v===""?NaN:parseFloat(v);}
   (function(){
-    ["premium","balDirect","cumPremium","surrValue","divReserve","loanPrincipal","loanInterest"].forEach(function(id){
+    ["premium","balDirect","cumPremium","surrValue","divReserve","loanPrincipal","loanInterest","tdAmount","liAmount","liStamp","puCashValue","puOldAsset","puLoanP","puLoanI"].forEach(function(id){
       var el=$(id),composing=false;
       function fmt(){var raw=toHankaku(el.value).replace(/[^0-9]/g,"");el.value=raw?Number(raw).toLocaleString("en-US"):"";}
       el.addEventListener("compositionstart",function(){composing=true;});
@@ -741,6 +791,45 @@
         '損金('+lossAcc+') = '+yen(P)+' − '+yen(assetAmt)+' = '+yen(lossAmt)+'円</div>';
       subjectTxn="保険料のお支払い";
       mailContent="このたびお手続きいただきました法人保険につきまして";
+    } else if(state.txn==="takedown"){
+      var td=numVal("tdAmount");
+      if(isNaN(td)||td<=0)return {incomplete:true,msg:"当期の取崩額を入力してください。"};
+      lines.push({s:"借",a:lossAcc,v:td});
+      lines.push({s:"貸",a:asset,v:td});
+      calcHtml='<p>保険料払込のない期間に、資産計上済みの'+asset+'を取り崩して'+lossAcc+'として損金算入します。</p><div class="formula">取崩額 = '+yen(td)+'円（借方 '+lossAcc+' ／ 貸方 '+asset+'）</div>';
+      subjectTxn="資産計上額の取崩し";
+      mailContent="資産計上期間経過後(保険料払込なし)の資産取崩につきまして";
+    } else if(state.txn==="loan_in"){
+      var la=numVal("liAmount");
+      if(isNaN(la)||la<=0)return {incomplete:true,msg:"契約者貸付を受けた金額を入力してください。"};
+      var st=numVal("liStamp"); if(isNaN(st)||st<0)st=0;
+      lines.push({s:"借",a:"現金預金",v:la-st});
+      if(st>0)lines.push({s:"借",a:"租税公課",v:st});
+      lines.push({s:"貸",a:"借入金",v:la});
+      calcHtml='<p>契約者貸付を受けたときの仕訳です。</p><div class="formula">現金預金 '+yen(la-st)+' ＝ 借入金 '+yen(la)+(st>0?' − 租税公課(印紙等) '+yen(st):'')+'</div>';
+      subjectTxn="契約者貸付(借入)";
+      mailContent="契約者貸付のお受取りにつきまして";
+    } else if(state.txn==="paidup"){
+      var cv=numVal("puCashValue");
+      if(isNaN(cv)||cv<0)return {incomplete:true,msg:"変更時の解約返戻金相当額を入力してください。"};
+      var oa=numVal("puOldAsset");
+      if(isNaN(oa)||oa<0)return {incomplete:true,msg:"変更前の資産計上額を入力してください。"};
+      var plp=numVal("puLoanP"); if(isNaN(plp)||plp<0)plp=0;
+      var pli=numVal("puLoanI"); if(isNaN(pli)||pli<0)pli=0;
+      var newAsset=cv-plp-pli, pdiff=cv-oa;
+      if(newAsset>0)lines.push({s:"借",a:"保険料積立金",v:newAsset});
+      if(plp>0)lines.push({s:"借",a:"借入金",v:plp});
+      if(pli>0)lines.push({s:"借",a:"支払利息",v:pli});
+      if(pdiff<0)lines.push({s:"借",a:"雑損失",v:-pdiff,cls:"dr-loss"});
+      if(newAsset<0)lines.push({s:"貸",a:"保険料積立金",v:-newAsset});
+      if(oa>0)lines.push({s:"貸",a:asset,v:oa});
+      if(pdiff>0)lines.push({s:"貸",a:"雑収入",v:pdiff,cls:"cr-income"});
+      var pword=pdiff>=0?"雑収入(益金)":"雑損失(損金)";
+      calcHtml='<p>払済保険への変更。解約返戻金相当額を保険料積立金へ計上し、変更前の資産計上額との差額を計上します。</p>'+
+        '<div class="formula">差額 = 解約返戻金相当額 '+yen(cv)+' − 変更前資産 '+yen(oa)+' = '+yen(pdiff)+'円 → '+pword+'</div>'+
+        ((plp>0||pli>0)?'<div class="formula">貸付精算：'+yen(cv)+' − 借入金 '+yen(plp)+' − 支払利息 '+yen(pli)+' = 新・保険料積立金 '+yen(newAsset)+'円</div>':'');
+      subjectTxn="払済保険への変更";
+      mailContent="払済保険へのご変更につきまして";
     } else {
       var A;
       if(state.bal==="direct"){
@@ -856,6 +945,12 @@
       else if(drLoss)diffNote="　"+assetTxt+"を取り崩し、解約返戻金との差額\n　"+yen(drLoss.v)+"円を雑損失(損金)として計上いたします。";
       else diffNote="　"+assetTxt+"を取り崩します。";
       if(d.loanP>0||d.loanI>0)diffNote+="\n　契約者貸付があるため、解約返戻金(総額 "+yen(d.grossC)+"円)から借入金 "+yen(d.loanP)+"円"+(d.loanI>0?"・支払利息 "+yen(d.loanI)+"円":"")+"を精算し、\n　差引 "+yen(d.netCash)+"円をお受け取りいただきます。";
+    } else if(state.txn==="takedown"){
+      diffNote="　資産計上済みの残高を当期分取り崩し、損金算入いたします。";
+    } else if(state.txn==="loan_in"){
+      diffNote="　契約者貸付として受け取った金額を借入金に計上いたします（返済までは負債として管理）。";
+    } else if(state.txn==="paidup"){
+      diffNote="　払済変更に伴い、解約返戻金相当額を保険料積立金へ計上し、変更前の資産計上額との差額を計上いたします。";
     } else {
       diffNote="　保険料を所定の割合で損金算入・資産計上いたします。";
     }
@@ -879,6 +974,12 @@
   function txnDetailText(d){
     if(state.txn==="pay"){
       return "　法人保険料のお支払い\n　金額："+yen(numVal("premium"))+"円\n　支払日："+(d.txnJP||"");
+    } else if(state.txn==="takedown"){
+      return "　資産計上額の取崩し（保険料払込なし）\n　取崩額："+yen(numVal("tdAmount"))+"円\n　取引日："+(d.txnJP||"");
+    } else if(state.txn==="loan_in"){
+      return "　契約者貸付(借入)\n　貸付額："+yen(numVal("liAmount"))+"円"+(numVal("liStamp")>0?"\n　印紙等："+yen(numVal("liStamp"))+"円":"")+"\n　取引日："+(d.txnJP||"");
+    } else if(state.txn==="paidup"){
+      return "　払済保険への変更\n　解約返戻金相当額："+yen(numVal("puCashValue"))+"円\n　変更前資産計上額："+yen(numVal("puOldAsset"))+"円"+(numVal("puLoanP")>0?"\n　契約者貸付精算：元金"+yen(numVal("puLoanP"))+"円"+(numVal("puLoanI")>0?"・利息"+yen(numVal("puLoanI"))+"円":""):"")+"\n　変更日："+(d.txnJP||"");
     } else {
       var t="　法人保険1契約の解約に伴う解約返戻金の受取";
       if(state.bal==="estimate")t+="\n　払込保険料累計："+yen(numVal("cumPremium"))+"円";
@@ -1108,7 +1209,7 @@
   });
 
   $("reset").addEventListener("click",function(){
-    ["premium","balDirect","cumPremium","surrValue","divReserve","loanPrincipal","loanInterest","customRatio","otherAcc","company","role","contact","insured","batchInput","b_otherAcc","b_customRatio","contractDate","maxRefundRate","elapsedYears","entryAge","insTerm"].forEach(function(id){$(id).value="";});
+    ["premium","balDirect","cumPremium","surrValue","divReserve","loanPrincipal","loanInterest","tdAmount","liAmount","liStamp","puCashValue","puOldAsset","puLoanP","puLoanI","customRatio","otherAcc","company","role","contact","insured","batchInput","b_otherAcc","b_customRatio","contractDate","maxRefundRate","elapsedYears","entryAge","insTerm"].forEach(function(id){$(id).value="";});
     $("under30").checked=false;
     applyTeikiAuto();
     render();
